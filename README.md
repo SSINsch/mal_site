@@ -16,4 +16,9 @@ if so, drop the packet
 + ????
 + ##PROFIT!
 
+// improvement?
++ if the user entered malicious sites simultaneously, the log recognize the first site only.
++ we can make the site redirect to the site like 'warning.or.kr'
++ for the better performance, we can use hash, binary search(sorting required)... etc
+
 ——————————————————————————————————————-

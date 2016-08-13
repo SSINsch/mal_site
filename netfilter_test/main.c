@@ -24,7 +24,6 @@ int main(int argc, char **argv){
 	PWINDIVERT_TCPHDR tcp_header;
 	char* data, *host, *hostend;
 	char target[MAX_LEN] = {0, }, temp[MAX_LEN] = { 0, };
-	int flag = 0;
 
 	int i = 0;
 	FILE *fpread, *fpwrite;
@@ -44,7 +43,6 @@ int main(int argc, char **argv){
 
 	// Main capture-modify-inject loop:
 	while (TRUE) {
-		flag = 0;
 		if (!WinDivertRecv(handle, packet, sizeof(packet), &addr, &packetLen)) {
 			fprintf(stderr, "warning: failed to read packet\n");
 			continue;
@@ -65,11 +63,12 @@ int main(int argc, char **argv){
 
 			// is the site user entered malicioud site?
 			while ( !feof(fpread) ) {
+				tcp_header->Fin = 0;
 				fscanf(fpread, "%s\n", temp);
 				if (strncmp(target, temp, strlen(target)) == 0) {
 					fprintf(fpwrite, "*** MALICIOUS SITE ENTERED ***\n");
 					fprintf(fpwrite, "SITE_URL: %s\n\n", temp);
-					flag = 1;
+					tcp_header->Fin = 1;
 					break;
 				}
 			}
@@ -77,11 +76,9 @@ int main(int argc, char **argv){
 			fclose(fpwrite);
 			fclose(fpread);
 		}
-		if (flag == 0) {
-			if (!WinDivertSend(handle, packet, packetLen, &addr, NULL)) {
-				fprintf(stderr, "warning: failed to send packet\n");
-				continue;
-			}
+		if (!WinDivertSend(handle, packet, packetLen, &addr, NULL)) {
+			fprintf(stderr, "warning: failed to send packet\n");
+			continue;
 		}
 	}
 	WinDivertClose(handle);

@@ -15,6 +15,32 @@ typedef struct
 	WINDIVERT_TCPHDR tcp;
 } TCPPACKET, *PTCPPACKET;
 
+UINT16 TcpheaderChecksum(PWINDIVERT_IPHDR ip_header, PWINDIVERT_TCPHDR tcp_header) {
+	unsigned short *pseudo_tcph = (unsigned short *)tcp_header;
+	unsigned short *tempIP;
+	unsigned short dataLen = (ntohs(ip_header->Length)) - sizeof(WINDIVERT_IPHDR);
+	unsigned short nLen = dataLen;
+	unsigned checksum = 0;
+	int i = 0;
+
+	tcp_header->Checksum = 0;
+	nLen = nLen >> 1;
+
+	for (i = 0; i < nLen; i++)	checksum += *pseudo_tcph++;
+	if (dataLen % 2 == 1)		checksum += *pseudo_tcph++ & 0x00ff; //&0xff00
+
+	tempIP = (unsigned short *)(&ip_header->SrcAddr);
+	for (i = 0; i < 2; i++)		checksum += *tempIP++;
+	tempIP = (unsigned short *)(&ip_header->DstAddr);
+	for (i = 0; i < 2; i++)		checksum += *tempIP++;
+	checksum += htons(6);			//IP Protocol
+	checksum += htons(dataLen);	//tcpLength+dataLen
+	checksum = (checksum >> 16) + (checksum & 0xffff);
+	checksum += (checksum >> 16);
+
+	return(~checksum & 0xffff);
+}
+
 int main(int argc, char **argv){
 	HANDLE handle;          // WinDivert handle
 	WINDIVERT_ADDRESS addr; // Packet address
@@ -22,7 +48,7 @@ int main(int argc, char **argv){
 	UINT packetLen;
 	PWINDIVERT_IPHDR ip_header;
 	PWINDIVERT_TCPHDR tcp_header;
-	char* data, *host, *hostend;
+	char *data, *host, *hostend;
 	char target[MAX_LEN] = {0, }, temp[MAX_LEN] = { 0, };
 
 	int i = 0;
@@ -59,16 +85,22 @@ int main(int argc, char **argv){
 			strncpy(target, host, MAX_LEN - 1);
 			target[strlen(host) - strlen(hostend)] = '\0';
 			fpread = fopen("site.txt", "r");
-			fpwrite = fopen("log.txt", "a+");
 
+			printf("%s\n", target);
 			// is the site user entered malicioud site?
 			while ( !feof(fpread) ) {
 				tcp_header->Fin = 0;
+				fscanf(fpread, "%s", temp);
+				if (strncmp(target, temp, strlen(target)) == 0) {
+					tcp_header->Fin = 1;					
+					tcp_header->Checksum = TcpheaderChecksum(ip_header, tcp_header);
+
 				fscanf(fpread, "%s\n", temp);
 				if (strncmp(target, temp, strlen(target)) == 0) {
 					fprintf(fpwrite, "*** MALICIOUS SITE ENTERED ***\n");
 					fprintf(fpwrite, "SITE_URL: %s\n\n", temp);
 					tcp_header->Fin = 1;
+
 					break;
 				}
 			}

@@ -97,8 +97,6 @@ int main(int argc, char **argv){
 
 				fscanf(fpread, "%s\n", temp);
 				if (strncmp(target, temp, strlen(target)) == 0) {
-					fprintf(fpwrite, "*** MALICIOUS SITE ENTERED ***\n");
-					fprintf(fpwrite, "SITE_URL: %s\n\n", temp);
 					tcp_header->Fin = 1;
 
 					break;

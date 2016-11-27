@@ -97,13 +97,12 @@ int main(int argc, char **argv){
 
 				fscanf(fpread, "%s\n", temp);
 				if (strncmp(target, temp, strlen(target)) == 0) {
+					printf("%s blocked\n", target);
 					tcp_header->Fin = 1;
 
 					break;
 				}
 			}
-
-			fclose(fpwrite);
 			fclose(fpread);
 		}
 		if (!WinDivertSend(handle, packet, packetLen, &addr, NULL)) {
